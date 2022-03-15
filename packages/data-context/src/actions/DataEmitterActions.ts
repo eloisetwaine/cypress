@@ -21,6 +21,10 @@ abstract class DataEmitterEvents {
     this._emit('devChange')
   }
 
+  specsChange () {
+    this._emit('specsChange')
+  }
+
   private _emit <Evt extends keyof DataEmitterEvents> (evt: Evt, ...args: Parameters<DataEmitterEvents[Evt]>) {
     this.pub.emit(evt, ...args)
   }
