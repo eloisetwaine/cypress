@@ -145,23 +145,6 @@ export function makeUrqlClient (config: UrqlClientConfig): Client {
     }),
   )
 
-  if (socketClient) {
-    exchanges.push(subscriptionExchange({
-      forwardSubscription (op) {
-        return {
-          subscribe: (sink) => {
-            // @ts-ignore
-            const dispose = socketClient.subscribe(op, sink)
-
-            return {
-              unsubscribe: dispose,
-            }
-          },
-        }
-      },
-    }))
-  }
-
   if (import.meta.env.DEV) {
     exchanges.unshift(devtoolsExchange)
   }
