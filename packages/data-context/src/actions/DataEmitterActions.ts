@@ -21,6 +21,11 @@ abstract class DataEmitterEvents {
     this._emit('devChange')
   }
 
+  /**
+   * Emitted when the specs for the current project have changed. This can
+   * be due to files being added or removed or due to a change in
+   * the spec pattern in the config
+   */
   specsChange () {
     this._emit('specsChange')
   }

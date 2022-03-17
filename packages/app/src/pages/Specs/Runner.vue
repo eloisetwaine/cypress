@@ -25,8 +25,8 @@
 </template>
 
 <script lang="ts" setup>
-import { gql, useQuery } from '@urql/vue'
-import { SpecPageContainerDocument } from '../../generated/graphql'
+import { gql, useQuery, useSubscription } from '@urql/vue'
+import { SpecPageContainerDocument, SpecPageContainer_SpecsChangeDocument } from '../../generated/graphql'
 import { getAutIframeModel } from '../../runner'
 import SpecRunnerContainerOpenMode from '../../runner/SpecRunnerContainerOpenMode.vue'
 import SpecRunnerContainerRunMode from '../../runner/SpecRunnerContainerRunMode.vue'
@@ -37,6 +37,20 @@ query SpecPageContainer {
   ...SpecRunner
 }
 `
+
+gql`
+subscription SpecPageContainer_specsChange {
+  specsChange {
+    id
+    specs {
+      id
+      ...SpecNode_InlineSpecList
+    }
+  }
+}
+`
+
+useSubscription({ query: SpecPageContainer_SpecsChangeDocument })
 
 const isRunMode = window.__CYPRESS_MODE__ === 'run'
 
