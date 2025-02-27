@@ -1,4 +1,4 @@
-import _ from 'lodash'
+import _, { isEmpty } from 'lodash'
 
 import $dom from '../../../dom'
 import $elements from '../../../dom/elements'
@@ -14,7 +14,8 @@ type GetOptions = Partial<Cypress.Loggable & Cypress.Timeoutable & Cypress.Withi
 }>
 
 type ContainsOptions = Partial<Cypress.Loggable & Cypress.Timeoutable & Cypress.CaseMatchable & Cypress.Shadow>
-type ShadowOptions = Partial<Cypress.Loggable & Cypress.Timeoutable>
+
+type QueryCommandOptions = 'get' | 'contains' | 'shadow' | ''
 
 function getAlias (selector, log, cy) {
   const alias = selector.slice(1)
@@ -141,6 +142,14 @@ function getAlias (selector, log, cy) {
   }
 }
 
+function validateTimeoutFromOpts (options: GetOptions | ContainsOptions | Cypress.LogTimeoutOptions = {}, queryCommand: QueryCommandOptions = '') {
+  if (!isEmpty(queryCommand) && _.isPlainObject(options) && options.hasOwnProperty('timeout') && !_.isFinite(options.timeout)) {
+    $errUtils.throwErrByPath(`${queryCommand}.invalid_option_timeout`, {
+      args: { timeout: options.timeout },
+    })
+  }
+}
+
 export default (Commands, Cypress, cy, state) => {
   Commands.addQuery('get', function get (selector, userOptions: GetOptions = {}) {
     if ((userOptions === null) || _.isArray(userOptions) || !_.isPlainObject(userOptions)) {
@@ -148,6 +157,8 @@ export default (Commands, Cypress, cy, state) => {
         args: { options: userOptions },
       })
     }
+
+    validateTimeoutFromOpts(userOptions, 'get')
 
     const log = userOptions._log || Cypress.log({
       message: selector,
@@ -253,6 +264,8 @@ export default (Commands, Cypress, cy, state) => {
       $errUtils.throwErrByPath('contains.empty_string')
     }
 
+    validateTimeoutFromOpts(userOptions, 'contains')
+
     // find elements by the :cy-contains pseudo selector
     // and any submit inputs with the attributeContainsWord selector
     const selector = $dom.getContainsSelector(text, filter, { matchCase: true, ...userOptions })
@@ -354,12 +367,15 @@ export default (Commands, Cypress, cy, state) => {
     }
   })
 
-  Commands.addQuery('shadow', function contains (userOptions: ShadowOptions = {}) {
+  Commands.addQuery('shadow', function contains (userOptions: Cypress.LogTimeoutOptions) {
+    userOptions = userOptions || {}
     const log = Cypress.log({
       hidden: userOptions.log === false,
       timeout: userOptions.timeout,
       consoleProps: () => ({}),
     })
+
+    validateTimeoutFromOpts(userOptions, 'shadow')
 
     this.set('timeout', userOptions.timeout)
     this.set('onFail', (err) => {

@@ -10,11 +10,15 @@
     "clean": "rimraf src/*.js src/**/*.js",
     "lint": "eslint --ext .js,.jsx,.ts,.tsx,.json, ."
   },
-  "dependencies": {},
+  "dependencies": {
+    "semver": "^7.6.3"
+  },
   "devDependencies": {
-    "@types/node": "18.17.5",
-    "devtools-protocol": "0.0.927104",
-    "typescript": "^4.7.4"
+    "@types/node": "20.16.0",
+    "better-sqlite3": "11.5.0",
+    "devtools-protocol": "0.0.1413303",
+    "express": "4.21.0",
+    "typescript": "~5.4.5"
   },
   "files": [
     "src/*"
@@ -24,5 +28,6 @@
     "nohoist": [
       "devtools-protocol"
     ]
-  }
+  },
+  "nx": {}
 }

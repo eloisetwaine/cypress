@@ -1,3 +1,4 @@
+/* tslint:disable:no-empty */
 require('../../spec_helper')
 const _ = require('lodash')
 const http = require('http')
@@ -24,8 +25,10 @@ const browser = {
     },
   },
   windows: {
-    getLastFocused () {},
+    getAll () {},
     getCurrent () {},
+    getLastFocused () {},
+    remove () {},
     update () {},
   },
   runtime: {},
@@ -291,86 +294,116 @@ describe('app/background', () => {
   })
 
   context('add header to aut iframe requests', () => {
-    it('does not add header if it is the top frame', async function () {
-      const details = {
-        parentFrameId: -1,
-      }
-
-      sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
-
-      await this.connect()
-
-      const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
-
-      expect(result).to.be.undefined
+    beforeEach(() => {
+      browser.runtime.getBrowserInfo = sinon.stub().resolves({ name: 'Firefox', version: '135.0.1' })
     })
 
-    it('does not add header if it is a nested frame', async function () {
-      const details = {
-        parentFrameId: 12345,
-      }
-
+    it('allows for CDP to be used as an escape hatch if BiDi would otherwise be enabled', async function () {
       sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
 
-      await this.connect()
+      await this.connect({
+        IS_CDP_FORCED_FOR_FIREFOX: true,
+      })
 
-      const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
-
-      expect(result).to.be.undefined
+      expect(browser.webRequest.onBeforeSendHeaders.addListener).to.be.called
     })
 
-    it('does not add header if it is a spec frame request', async function () {
-      const details = {
-        parentFrameId: 0,
-        type: 'sub_frame',
-        url: '/__cypress/integration/spec.js',
-      }
+    context('BiDi enabled', () => {
+      it('does not attach onBeforeSendHeaders listener if BiDi is enabled', async function () {
+        sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
 
-      sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
+        await this.connect()
 
-      await this.connect()
-      const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
-
-      expect(result).to.be.undefined
-    })
-
-    it('appends X-Cypress-Is-AUT-Frame header to AUT iframe request', async function () {
-      const details = {
-        parentFrameId: 0,
-        type: 'sub_frame',
-        url: 'http://localhost:3000/index.html',
-        requestHeaders: [
-          { name: 'X-Foo', value: 'Bar' },
-        ],
-      }
-
-      sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
-
-      await this.connect()
-      const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
-
-      expect(result).to.deep.equal({
-        requestHeaders: [
-          {
-            name: 'X-Foo',
-            value: 'Bar',
-          },
-          {
-            name: 'X-Cypress-Is-AUT-Frame',
-            value: 'true',
-          },
-        ],
+        expect(browser.webRequest.onBeforeSendHeaders.addListener).not.to.be.called
       })
     })
 
-    it('does not add before-headers listener if in non-Firefox browser', async function () {
-      browser.runtime.getBrowserInfo = undefined
+    context('CDP enabled', () => {
+      beforeEach(() => {
+        browser.runtime.getBrowserInfo = sinon.stub().resolves({ name: 'Firefox', version: '134' })
+      })
 
-      const onBeforeSendHeaders = sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
+      it('does not add header if it is the top frame', async function () {
+        const details = {
+          parentFrameId: -1,
+        }
 
-      await this.connect()
+        sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
 
-      expect(onBeforeSendHeaders).not.to.be.called
+        await this.connect()
+
+        const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
+
+        expect(result).to.be.undefined
+      })
+
+      it('does not add header if it is a nested frame', async function () {
+        const details = {
+          parentFrameId: 12345,
+        }
+
+        sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
+
+        await this.connect()
+
+        const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
+
+        expect(result).to.be.undefined
+      })
+
+      it('does not add header if it is a spec frame request', async function () {
+        const details = {
+          parentFrameId: 0,
+          type: 'sub_frame',
+          url: '/__cypress/integration/spec.js',
+        }
+
+        sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
+
+        await this.connect()
+        const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
+
+        expect(result).to.be.undefined
+      })
+
+      it('appends X-Cypress-Is-AUT-Frame header to AUT iframe request', async function () {
+        const details = {
+          parentFrameId: 0,
+          type: 'sub_frame',
+          url: 'http://localhost:3000/index.html',
+          requestHeaders: [
+            { name: 'X-Foo', value: 'Bar' },
+          ],
+        }
+
+        sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
+
+        await this.connect()
+        const result = browser.webRequest.onBeforeSendHeaders.addListener.lastCall.args[0](details)
+
+        expect(result).to.deep.equal({
+          requestHeaders: [
+            {
+              name: 'X-Foo',
+              value: 'Bar',
+            },
+            {
+              name: 'X-Cypress-Is-AUT-Frame',
+              value: 'true',
+            },
+          ],
+        })
+      })
+
+      it('does not add before-headers listener if in non-Firefox browser', async function () {
+        browser.runtime.getBrowserInfo = undefined
+
+        const onBeforeSendHeaders = sinon.stub(browser.webRequest.onBeforeSendHeaders, 'addListener')
+
+        await this.connect()
+
+        expect(onBeforeSendHeaders).not.to.be.called
+      })
     })
   })
 
@@ -844,24 +877,82 @@ describe('app/background', () => {
       })
     })
 
-    describe('reset:browser:tabs:for:next:test', () => {
+    describe('reset:browser:tabs:for:next:spec', () => {
       beforeEach(() => {
         sinon.stub(browser.windows, 'getCurrent').withArgs({ populate: true }).resolves({ id: '10', tabs: [{ id: '1' }, { id: '2' }, { id: '3' }] })
         sinon.stub(browser.tabs, 'remove').withArgs(['1', '2', '3']).resolves()
+        sinon.stub(browser.tabs, 'create').withArgs({ url: 'about:blank', active: false }).resolves({
+          id: 'new-tab',
+        })
       })
 
-      it('closes the tabs in the current browser window', function (done) {
+      // @see https://github.com/cypress-io/cypress/issues/29172 for Firefox versions 124 and up
+      it('closes the tabs in the current browser window and creates a new "about:blank" tab', function (done) {
+        sinon.stub(browser.windows, 'getAll').resolves([{ id: '10' }])
+
         this.socket.on('automation:response', (id, obj) => {
           expect(id).to.eq(123)
           expect(obj.response).to.be.undefined
 
           expect(browser.windows.getCurrent).to.be.called
-          expect(browser.tabs.remove).to.be.called
+          expect(browser.tabs.remove).to.be.calledWith(['1', '2', '3'])
+          expect(browser.tabs.create).to.be.calledWith({ url: 'about:blank', active: false })
 
           done()
         })
 
-        this.server.emit('automation:request', 123, 'reset:browser:tabs:for:next:test')
+        this.server.emit('automation:request', 123, 'reset:browser:tabs:for:next:spec')
+      })
+
+      it('closes any extra windows', function (done) {
+        sinon.stub(browser.windows, 'getAll').resolves([{ id: '9' }, { id: '10' }, { id: '11' }])
+        sinon.stub(browser.windows, 'remove').resolves()
+
+        this.socket.on('automation:response', (id, obj) => {
+          expect(id).to.eq(123)
+          expect(obj.response).to.be.undefined
+
+          expect(browser.windows.remove).to.be.calledWith('9')
+          expect(browser.windows.remove).to.be.calledWith('11')
+          expect(browser.windows.remove).not.to.be.calledWith('10')
+
+          done()
+        })
+
+        this.server.emit('automation:request', 123, 'reset:browser:tabs:for:next:spec')
+      })
+
+      it('does not fail if we are unable to close the window', function (done) {
+        sinon.stub(browser.windows, 'getAll').resolves([{ id: '9' }, { id: '10' }, { id: '11' }])
+        sinon.stub(browser.windows, 'remove').rejects()
+
+        this.socket.on('automation:response', (id, obj) => {
+          expect(id).to.eq(123)
+          expect(obj.response).to.be.undefined
+
+          expect(browser.windows.remove).to.be.calledWith('9')
+          expect(browser.windows.remove).to.be.calledWith('11')
+
+          expect(browser.windows.remove).not.to.be.calledWith('10')
+          done()
+        })
+
+        this.server.emit('automation:request', 123, 'reset:browser:tabs:for:next:spec')
+      })
+
+      it('does not fail if we are unable to retrieve the windows', function (done) {
+        sinon.stub(browser.windows, 'getAll').rejects()
+        sinon.stub(browser.windows, 'remove')
+
+        this.socket.on('automation:response', (id, obj) => {
+          expect(id).to.eq(123)
+          expect(obj.response).to.be.undefined
+
+          expect(browser.windows.remove).not.to.be.called
+          done()
+        })
+
+        this.server.emit('automation:request', 123, 'reset:browser:tabs:for:next:spec')
       })
     })
   })

@@ -17,6 +17,7 @@ export function makeCypressWebpackConfig (
   const {
     devServerConfig: {
       cypressConfig: {
+        justInTimeCompile,
         port,
         projectRoot,
         devServerPublicPathRoute,
@@ -99,9 +100,12 @@ export function makeCypressWebpackConfig (
   } as any
 
   if (isRunMode) {
+    // if justInTimeCompile is configured, we need to watch for file changes as the spec entries are going to be updated per test
+    const ignored = justInTimeCompile ? /node_modules/ : '**/*'
+
     // Disable file watching when executing tests in `run` mode
     finalConfig.watchOptions = {
-      ignored: '**/*',
+      ignored,
     }
   }
 
@@ -117,12 +121,14 @@ export function makeCypressWebpackConfig (
     }
   }
 
-  // @ts-ignore
+  // default is webpack-dev-server v5
   return {
     ...finalConfig,
     devServer: {
       port: webpackDevServerPort,
-      overlay: false,
+      client: {
+        overlay: false,
+      },
     },
   }
 }

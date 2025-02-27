@@ -65,9 +65,10 @@ export type BrowserPreRequest = {
   originalResourceType: string | undefined
   errorHandled?: boolean
   initiator?: Protocol.Network.Initiator
-  documentURL: string
-  cdpRequestWillBeSentTimestamp: number
-  cdpRequestWillBeSentReceivedTimestamp: number
+  documentURL?: string
+  hasRedirectResponse?: boolean
+  cdpRequestWillBeSentTimestamp?: number
+  cdpRequestWillBeSentReceivedTimestamp?: number
 }
 
 export type BrowserPreRequestWithTimings = BrowserPreRequest & ProxyTimings

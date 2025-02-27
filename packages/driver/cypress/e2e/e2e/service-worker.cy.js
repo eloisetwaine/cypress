@@ -1,5 +1,5 @@
 // decrease the timeouts to ensure we don't hit the 2s correlation timeout
-describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000, retries: 0 }, () => {
+describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000 }, () => {
   let sessionId
 
   const getSessionId = async () => {
@@ -34,26 +34,40 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
     return result.result.type
   }
 
+  const detachFromTarget = async () => {
+    await Cypress.automation('remote:debugger:protocol', { command: 'Target.detachFromTarget', params: { sessionId } })
+  }
+
   const validateFetchHandlers = ({ listenerCount, onFetchHandlerType }) => {
-    if (Cypress.browser.family !== 'chromium') {
-      cy.log('Skipping fetch handlers validation in non-Chromium browsers')
+    // skip validation in non-Chromium and electron browsers
+    // non-Chromium browsers do not fully support the remote debugger protocol
+    // possibly remove the electron check on https://github.com/cypress-io/cypress/issues/2118 is resolved
+    if (Cypress.browser.family !== 'chromium' || Cypress.browser.name === 'electron') {
+      cy.log('Skipping fetch handlers validation in non-Chromium and electron browsers')
 
       return
     }
 
     cy.then(() => {
-      cy.wrap(getEventListenersLength()).should('equal', listenerCount)
-      if (onFetchHandlerType) cy.wrap(getOnFetchHandlerType()).should('equal', onFetchHandlerType)
+      cy.wrap(getEventListenersLength()).should('equal', listenerCount).then(() => {
+        if (onFetchHandlerType) cy.wrap(getOnFetchHandlerType()).should('equal', onFetchHandlerType)
+      }).then(() => {
+        cy.wrap(detachFromTarget())
+      })
     })
   }
 
-  beforeEach(async () => {
+  const unregisterServiceWorker = () => {
+    cy.wrap(navigator.serviceWorker.getRegistrations()).then((registrations) => {
+      cy.wrap(Promise.all(registrations.map((registration) => registration.unregister())))
+    })
+  }
+
+  beforeEach(() => {
     sessionId = null
 
     // unregister the service worker to ensure it does not affect other tests
-    const registrations = await navigator.serviceWorker.getRegistrations()
-
-    await Promise.all(registrations.map((registration) => registration.unregister()))
+    unregisterServiceWorker()
   })
 
   describe('a service worker that handles requests', () => {
@@ -66,7 +80,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -87,7 +101,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -107,7 +121,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -127,7 +141,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -145,7 +159,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -165,7 +179,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -182,7 +196,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -206,7 +220,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -231,7 +245,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -257,7 +271,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -279,7 +293,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -303,7 +317,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -322,7 +336,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -345,7 +359,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -374,7 +388,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('fixtures/service-worker.html')
@@ -400,7 +414,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('/fixtures/service-worker.html')
@@ -423,7 +437,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('/fixtures/service-worker.html')
@@ -443,7 +457,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
       cy.intercept('/fixtures/service-worker.js', (req) => {
         req.reply(`(${script})()`,
-          { 'Content-Type': 'application/javascript' })
+          { 'Content-Type': 'text/javascript' })
       })
 
       cy.visit('/fixtures/service-worker.html')
@@ -481,7 +495,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
@@ -509,7 +523,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
@@ -537,7 +551,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
@@ -550,7 +564,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
@@ -581,7 +595,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html').then(async (win) => {
@@ -607,7 +621,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
@@ -626,7 +640,7 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
@@ -644,12 +658,62 @@ describe('service workers', { defaultCommandTimeout: 1000, pageLoadTimeout: 1000
 
     cy.intercept('/fixtures/service-worker.js', (req) => {
       req.reply(`(${script})()`,
-        { 'Content-Type': 'application/javascript' })
+        { 'Content-Type': 'text/javascript' })
     })
 
     cy.visit('fixtures/service-worker.html')
 
     cy.get('#output').should('have.text', 'done')
     validateFetchHandlers({ listenerCount: 1 })
+  })
+
+  it('supports a service worker that is activated but not handling fetch events', () => {
+    const script = () => {
+      self.addEventListener('fetch', function (event) {
+        event.respondWith(fetch(event.request))
+      })
+    }
+
+    cy.intercept('/fixtures/service-worker.js', (req) => {
+      req.reply(`(${script})()`,
+        { 'Content-Type': 'text/javascript' })
+    })
+
+    cy.visit('fixtures/service-worker.html?skipReload')
+
+    cy.get('#output').should('have.text', 'done')
+    validateFetchHandlers({ listenerCount: 1 })
+  })
+
+  it('supports a redirected request', () => {
+    const script = () => {
+      self.addEventListener('fetch', function (event) {
+        return
+      })
+    }
+
+    cy.intercept('/fixtures/service-worker.js', (req) => {
+      req.reply(`(${script})()`,
+        { 'Content-Type': 'text/javascript' })
+    })
+
+    cy.intercept('/fixtures/1mb*', (req) => {
+      req.reply({
+        statusCode: 302,
+        headers: {
+          location: '/fixtures/redirected',
+        },
+      })
+    })
+
+    cy.intercept('/fixtures/redirected', (req) => {
+      req.reply('redirected')
+    })
+
+    cy.visit('fixtures/service-worker.html')
+    cy.get('#output', {
+      // request takes a little longer with WebDriver BiDi to return (Firefox 135+ only)
+      timeout: 8000,
+    }).should('have.text', 'done')
   })
 })

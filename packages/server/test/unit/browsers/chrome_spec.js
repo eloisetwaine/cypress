@@ -192,27 +192,35 @@ describe('lib/browsers/chrome', () => {
       })
     })
 
-    it('DEPRECATED: normalizes --load-extension if provided in plugin', function () {
-      plugins.registerEvent('before:browser:launch', (browser, config) => {
-        return Promise.resolve(['--foo=bar', '--load-extension=/foo/bar/baz.js'])
+    context('when IGNORE_CHROME_PREFERENCES env is set', () => {
+      let oldPref
+      let writeJson
+
+      beforeEach(function () {
+        oldPref = process.env.IGNORE_CHROME_PREFERENCES
+        process.env.IGNORE_CHROME_PREFERENCES = true
+        this.readJson.rejects({ code: 'ENOENT' })
+        writeJson = sinon.stub(fs, 'outputJson').resolves()
       })
 
-      const pathToTheme = extension.getPathToTheme()
+      afterEach(() => {
+        process.env.IGNORE_CHROME_PREFERENCES = oldPref
+        writeJson.restore()
+      })
 
-      const onWarning = sinon.stub()
+      it('does not read or write preferences', async function () {
+        chrome._writeExtension.restore()
+        utils.getProfileDir.restore()
 
-      return chrome.open({ isHeaded: true }, 'http://', { onWarning, onError: () => {} }, this.automation)
-      .then(() => {
-        const args = launch.launch.firstCall.args[3]
+        await chrome.open({
+          isHeadless: true,
+          isHeaded: false,
+          name: 'chromium',
+          channel: 'stable',
+        }, 'http://', openOpts, this.automation)
 
-        expect(args).to.deep.eq([
-          '--foo=bar',
-          `--load-extension=/foo/bar/baz.js,/path/to/ext,${pathToTheme}`,
-          '--user-data-dir=/profile/dir',
-          '--disk-cache-dir=/profile/dir/CypressCache',
-        ])
-
-        expect(onWarning).calledOnce
+        expect(writeJson).not.to.be.called
+        expect(this.readJson).not.to.be.called
       })
     })
 

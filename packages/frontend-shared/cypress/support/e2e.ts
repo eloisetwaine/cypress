@@ -5,7 +5,7 @@ import { fixtureDirs, ProjectFixtureDir } from '@tooling/system-tests'
 import type { DataContext } from '@packages/data-context'
 import type { AuthenticatedUserShape } from '@packages/data-context/src/data'
 import type { DocumentNode, ExecutionResult } from 'graphql'
-import type { Browser, FoundBrowser, OpenModeOptions } from '@packages/types'
+import { GET_MAJOR_VERSION_FOR_CONTENT, type Browser, type FoundBrowser, type OpenModeOptions } from '@packages/types'
 
 import type { SinonStub } from 'sinon'
 import type sinon from 'sinon'
@@ -19,6 +19,7 @@ import i18n from '../../src/locales/en-US.json'
 import { addNetworkCommands } from './onlineNetwork'
 import { logInternal } from './utils'
 import { tabUntil } from './tab-until'
+import './browserIconCommands'
 
 configure({ testIdAttribute: 'data-cy' })
 
@@ -165,7 +166,7 @@ declare global {
       /**
        * Visits the Cypress launchpad
        */
-      visitLaunchpad(href?: string): Chainable<AUTWindow>
+      visitLaunchpad: typeof visitLaunchpad
       /**
        * Skips the welcome screen of the launchpad
        */
@@ -384,8 +385,8 @@ function specsPageIsVisible (specsSetup) {
   return cy.get('[data-cy=spec-list-container]').should('be.visible')
 }
 
-function visitLaunchpad () {
-  return logInternal(`visitLaunchpad ${Cypress.env('e2e_launchpadPort')}`, () => {
+function visitLaunchpad (options: { showWelcome?: boolean } = { showWelcome: false }) {
+  function launchpadVisit () {
     return cy.visit(`/__launchpad/index.html`, { log: false }).then((val) => {
       return cy.get('[data-e2e]', { timeout: 10000, log: false }).then(() => {
         return cy.get('.spinner', { timeout: 10000, log: false }).should('not.exist').then(() => {
@@ -393,6 +394,25 @@ function visitLaunchpad () {
         })
       })
     })
+  }
+
+  return logInternal(`visitLaunchpad ${Cypress.env('e2e_launchpadPort')}`, () => {
+    if (!options.showWelcome) {
+      return cy.withCtx(async (ctx, o) => {
+        // avoid re-stubbing already stubbed prompts in case we call getPreferences multiple times
+        if ((ctx._apis.localSettingsApi.getPreferences as any).wrappedMethod === undefined) {
+          o.sinon.stub(ctx._apis.localSettingsApi, 'getPreferences').resolves({ majorVersionWelcomeDismissed: {
+            [o.MAJOR_VERSION_FOR_CONTENT]: Date.now(),
+          } })
+        }
+      }, {
+        MAJOR_VERSION_FOR_CONTENT: GET_MAJOR_VERSION_FOR_CONTENT(),
+      }).then(() => {
+        return launchpadVisit()
+      })
+    }
+
+    return launchpadVisit()
   })
 }
 

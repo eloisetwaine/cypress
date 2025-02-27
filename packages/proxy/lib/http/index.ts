@@ -18,7 +18,7 @@ import type {
   CypressIncomingRequest,
   CypressOutgoingResponse,
   BrowserPreRequest,
-} from '@packages/proxy'
+} from '../types'
 import type { IncomingMessage } from 'http'
 import type { NetStubbingState } from '@packages/net-stubbing'
 import type { Readable } from 'stream'
@@ -26,7 +26,7 @@ import type { Request, Response } from 'express'
 import type { RemoteStates } from '@packages/server/lib/remote_states'
 import type { CookieJar, SerializableAutomationCookie } from '@packages/server/lib/util/cookies'
 import type { ResourceTypeAndCredentialManager } from '@packages/server/lib/util/resourceTypeAndCredentialManager'
-import type { ProtocolManagerShape } from '@packages/types'
+import type { FoundBrowser, ProtocolManagerShape } from '@packages/types'
 import type Protocol from 'devtools-protocol'
 import type { ServiceWorkerClientEvent } from './util/service-worker-manager'
 
@@ -101,6 +101,7 @@ export type ServerCtx = Readonly<{
   socket: CyServer.Socket
   request: any
   serverBus: EventEmitter
+  getCurrentBrowser: () => FoundBrowser
 }>
 
 const READONLY_MIDDLEWARE_KEYS: (keyof HttpMiddlewareThis<{}>)[] = [
@@ -272,6 +273,7 @@ export class Http {
   middleware: HttpMiddlewareStacks
   netStubbingState: NetStubbingState
   preRequests: PreRequests = new PreRequests()
+  getCurrentBrowser: () => FoundBrowser
   request: any
   socket: CyServer.Socket
   serverBus: EventEmitter
@@ -296,6 +298,7 @@ export class Http {
     this.serverBus = opts.serverBus
     this.resourceTypeAndCredentialManager = opts.resourceTypeAndCredentialManager
     this.getCookieJar = opts.getCookieJar
+    this.getCurrentBrowser = opts.getCurrentBrowser
 
     if (typeof opts.middleware === 'undefined') {
       this.middleware = defaultMiddleware
@@ -361,9 +364,10 @@ export class Http {
         this.preRequests.removePendingRequest(pendingRequest)
       },
       protocolManager: this.protocolManager,
+      getCurrentBrowser: this.getCurrentBrowser,
     }
 
-    const onError = (error: Error): Promise<void> => {
+    const onError = async (error: Error): Promise<void> => {
       const pendingRequest = ctx.pendingRequest as PendingRequest | undefined
 
       if (pendingRequest) {
@@ -387,7 +391,7 @@ export class Http {
         }
 
         ctx.debug('Re-using pre-request data %o', preRequest)
-        this.addPendingBrowserPreRequest(preRequest)
+        await this.addPendingBrowserPreRequest(preRequest)
       }
 
       return _runStage(HttpStages.Error, ctx, onError)
